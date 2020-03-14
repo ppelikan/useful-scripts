@@ -2,4 +2,4 @@
 
 left_file=$(cat ~/.compare_left)
 
-meld $left_file $PWD/$1
+meld "$left_file" "$PWD/$1"
