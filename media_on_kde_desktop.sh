@@ -51,11 +51,9 @@ update_one() {
 }
 
 update_desktop() {
-    #https://unix.stackexchange.com/questions/177014/showing-only-interesting-mount-points-filtering-non-interesting-types/177040
     LIST=$(findmnt -uUrn --real -o TARGET,PARTLABEL,LABEL | grep -vE '(/run/user/|/var/|/boot/|/tmp/.|/run/timeshift/)') # get list of mounted volumes, excluding fake/system/not-real ones
     ITER=0
     while IFS= read -r LINE; do
-        # echo "Generating: $LINE"
         update_one $LINE
     done <<<"$LIST"
 
@@ -63,7 +61,7 @@ update_desktop() {
     MAX=$(ls -1 $DESKTOP_PATH/$FILE_PREFIX*.desktop | wc -l)           # get number of icons
     TORM=$(seq -f "$DESKTOP_PATH/$FILE_PREFIX%02g.desktop" $ITER $MAX) # get list of icons to remove
     if [ -n "$TORM" ]; then
-        rm $TORM # remove all icons that link to no longer present volumesmount | grep '^/[^/]'
+        rm $TORM # remove all icons that link to no longer present volumes
     fi
     mkdir $DESKTOP_PATH/$FILE_PREFIX999.desktop && rm -f $DESKTOP_PATH/$FILE_PREFIX999.desktop # workaround to force refresh (F5) action of the desktop
     return 0
@@ -94,33 +92,19 @@ done
 echo "Initial refresh..."
 update_desktop
 echo "Initial refresh done successfully"
-trap finish EXIT #SIGINT SIGTERM
+trap finish EXIT
 # dbus-listen --interface 'org.gtk.vfs.UDisks2VolumeMonitor' --member 'VolumeChanged' $(basename "$0")
 sleep 2
 echo "Daemon started..."
-
-# https://stackoverflow.com/questions/5344390/how-to-continuously-monitor-rhythmbox-for-track-change-using-bash/5345462#5345462
-# https://askubuntu.com/questions/150790/how-do-i-run-a-script-on-a-dbus-signal
-# https://unix.stackexchange.com/questions/28181/how-to-run-a-script-on-screen-lock-unlock
 
 while :; do
     # dbus-monitor --session --profile "interface='org.gtk.vfs.UDisks2VolumeMonitor',member='VolumeChanged'" |
     gdbus monitor -e -d org.gtk.vfs.UDisks2VolumeMonitor |
         while read -r EMPTY; do
-            # echo $EMPTY >>~/LOLO.txt
-            # echo etap3
             sleep 0.5
             update_desktop
             for i in {1..10}; do
                 read -rt 0.1 EMPTY
-                # echo $i
-                # echo $EMPTY >>~/LOLO.txt
             done
-            # echo etap4
         done
 done
-
-# https://stackoverflow.com/questions/1113176/how-could-i-detect-when-a-directory-is-mounted-with-inotify
-# https://unix.stackexchange.com/questions/267876/why-doesnt-inotify-work-with-etc-mtab-or-proc-mounts
-# https://stackoverflow.com/questions/43078579/systemd-execute-script-on-every-mount
-# https://serverfault.com/questions/50585/whats-the-best-way-to-check-if-a-volume-is-mounted-in-a-bash-script
